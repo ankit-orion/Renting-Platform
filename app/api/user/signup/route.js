@@ -2,9 +2,6 @@ import dbConnect from "@/database/dbConnect";
 import User from "@/modals/UserModal";
 import { hash, genSalt} from "bcryptjs";
 import { z } from "zod";
-import crypto from "crypto";
-import { sendEmail } from "@/utils/auth";
-import OtpModal from "@/modals/OtpModal";
 import {sign} from "jsonwebtoken";
 import {NextResponse} from "next/server";
 
@@ -13,15 +10,6 @@ const signupSchema = z.object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters long"),
 });
-
-const otpSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    otp: z.string().length(6, "OTP must be 6 characters long"),
-});
-
-function generateOTP() {
-    return crypto.randomInt(100000, 999999).toString();
-}
 
 export async function POST(req) {
     if (req.method !== 'POST') {
@@ -40,21 +28,40 @@ export async function POST(req) {
             return Response.json({ message: 'User already exists' }, { status: 400 });
         }
 
-        // Generate and store OTP
-        const otp = generateOTP();
+        // Hash password
+        const salt = await genSalt(10);
+        const hashedPassword = await hash(password, salt);
 
-        const otpData = new OtpModal({
+        // Create new user
+        const newUser = new User({
+            username,
             email,
-            otp,
-            expires: Date.now() + 600000
+            password: hashedPassword,
         });
 
-        await otpData.save();
+        await newUser.save();
 
-        // Send OTP
-        await sendEmail(email, "Your OTP for Signup", `Your OTP is: ${otp}. It will expire in 10 minutes.`);
+        // Generate JWT token
+        const token = sign(
+            { userId: newUser._id, email: newUser.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "20d" }
+        );
 
-        return Response.json({ message: 'OTP sent successfully' }, { status: 200 });
+        const response = NextResponse.json({
+            message: "User created successfully",
+        }, { status: 201 });
+
+        // Set token in cookie
+        response.cookies.set('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
+            path: '/',
+        });
+
+        return response;
     } catch (error) {
         if (error instanceof z.ZodError) {
             return Response.json({ message: error.errors[0].message }, { status: 400 });

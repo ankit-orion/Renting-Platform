@@ -31,20 +31,11 @@ const inputVariants = {
     hidden: { x: -20, opacity: 0 },
     visible: { x: 0, opacity: 1, transition: { duration: 0.3 } },
 };
-
-// Define schema for form validation
+// Update the schema to remove confirmPassword
 const signupSchema = z.object({
     username: z.string().min(3, { message: "Username must be at least 3 characters long" }),
     email: z.string().email({ message: "Invalid email address" }),
     password: z.string().min(8, { message: "Password must be at least 8 characters long" }),
-    confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-});
-
-const otpSchema = z.object({
-    otp: z.string().length(6, { message: "OTP must be 6 characters long" }),
 });
 
 const SignupPage = () => {
@@ -53,18 +44,10 @@ const SignupPage = () => {
     const [serverError, setServerError] = useState("");
     const [serverSuccess, setServerSuccess] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [showOTPInput, setShowOTPInput] = useState(false);
     const [showEmailSignup, setShowEmailSignup] = useState(false);
-    const [email, setEmail] = useState("");
-    const [signupData, setSignupData] = useState(null);
 
     const { register: registerSignup, handleSubmit: handleSubmitSignup, formState: { errors: signupErrors } } = useForm({
         resolver: zodResolver(signupSchema)
-    });
-
-    const { register: registerOTP, handleSubmit: handleSubmitOTP, formState: { errors: otpErrors } } = useForm({
-        resolver: zodResolver(otpSchema)
     });
 
     const onSubmitSignup = async (data) => {
@@ -76,14 +59,12 @@ const SignupPage = () => {
             const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/user/signup`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: data.username, email: data.email, password: data.password }),
+                body: JSON.stringify(data),
             });
 
             if (response.ok) {
-                setEmail(data.email);
-                setSignupData(data);  // Store the signup data
-                setShowOTPInput(true);
-                setServerSuccess("OTP sent to your email. Please verify to complete signup.");
+                setServerSuccess("Signup successful!");
+                router.push("/");
             } else {
                 const errorData = await response.json();
                 setServerError(errorData.message);
@@ -91,39 +72,6 @@ const SignupPage = () => {
         } catch (error) {
             setServerError("An error occurred during signup. Please try again.");
             console.error("Signup error:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const onSubmitOTP = async (data) => {
-        setIsLoading(true);
-        setServerError("");
-        setServerSuccess("");
-
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/user/signup`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: signupData.email,
-                    username: signupData.username,
-                    password: signupData.password,
-                    otp: data.otp
-                }),
-            });
-
-            if (response.ok) {
-                setServerSuccess("Signup successful!");
-                setShowOTPInput(false);
-                router.push("/");
-            } else {
-                const errorData = await response.json();
-                setServerError(errorData.message);
-            }
-        } catch (error) {
-            setServerError("An error occurred during OTP verification. Please try again.");
-            console.error("OTP verification error:", error);
         } finally {
             setIsLoading(false);
         }
@@ -145,12 +93,12 @@ const SignupPage = () => {
             >
                 <Card className="w-[350px]">
                     <CardHeader>
-                        <CardTitle>{showOTPInput ? "Verify OTP" : "Sign Up"}</CardTitle>
-                        <CardDescription>{showOTPInput ? "Enter the OTP sent to your email" : "Create your account"}</CardDescription>
+                        <CardTitle>Sign Up</CardTitle>
+                        <CardDescription>Create your account</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <AnimatePresence mode="wait">
-                            {!showEmailSignup && !showOTPInput ? (
+                            {!showEmailSignup ? (
                                 <motion.div
                                     key="providers"
                                     variants={containerVariants}
@@ -184,7 +132,7 @@ const SignupPage = () => {
                                         Sign up with Email
                                     </Button>
                                 </motion.div>
-                            ) : showEmailSignup && !showOTPInput ? (
+                            ) : (
                                 <motion.div
                                     key="email-signup"
                                     variants={containerVariants}
@@ -243,54 +191,8 @@ const SignupPage = () => {
                                                 </div>
                                                 {signupErrors.password && <p className="text-red-500 text-sm mt-1">{signupErrors.password.message}</p>}
                                             </motion.div>
-                                            <motion.div variants={inputVariants}>
-                                                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                                                <div className="relative">
-                                                    <Input
-                                                        type={showConfirmPassword ? "text" : "password"}
-                                                        id="confirmPassword"
-                                                        {...registerSignup("confirmPassword")}
-                                                        className={signupErrors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                    >
-                                                        {showConfirmPassword ? <EyeOffIcon className="h-5 w-5 text-gray-400" /> : <EyeIcon className="h-5 w-5 text-gray-400" />}
-                                                    </button>
-                                                </div>
-                                                {signupErrors.confirmPassword && <p className="text-red-500 text-sm mt-1">{signupErrors.confirmPassword.message}</p>}
-                                            </motion.div>
                                             <Button className="w-full" type="submit" disabled={isLoading}>
                                                 {isLoading ? "Signing up..." : "Sign Up"}
-                                            </Button>
-                                        </div>
-                                    </form>
-                                </motion.div>
-                            ) : (
-                                <motion.div
-                                    key="otp-input"
-                                    variants={containerVariants}
-                                    initial="hidden"
-                                    animate="visible"
-                                    exit="exit"
-                                >
-                                    <form onSubmit={handleSubmitOTP(onSubmitOTP)}>
-                                        <div className="grid w-full items-center gap-4">
-                                            <motion.div variants={inputVariants}>
-                                                <Label htmlFor="otp">OTP</Label>
-                                                <Input
-                                                    type="text"
-                                                    id="otp"
-                                                    placeholder="Enter 6-digit OTP"
-                                                    {...registerOTP("otp")}
-                                                    className={otpErrors.otp ? "border-red-500" : ""}
-                                                />
-                                                {otpErrors.otp && <p className="text-red-500 text-sm mt-1">{otpErrors.otp.message}</p>}
-                                            </motion.div>
-                                            <Button className="w-full" type="submit" disabled={isLoading}>
-                                                {isLoading ? "Verifying..." : "Verify OTP"}
                                             </Button>
                                         </div>
                                     </form>
@@ -308,11 +210,9 @@ const SignupPage = () => {
                             </Alert>
                         )}
                     </CardContent>
-                    {!showOTPInput && (
-                        <CardFooter className="flex justify-center">
-                            <p className="text-sm text-gray-500">Already have an account? <Link href="/login" className="text-blue-500">Log in</Link></p>
-                        </CardFooter>
-                    )}
+                    <CardFooter className="flex justify-center">
+                        <p className="text-sm text-gray-500">Already have an account? <Link href="/login" className="text-blue-500">Log in</Link></p>
+                    </CardFooter>
                 </Card>
             </motion.div>
         </div>
