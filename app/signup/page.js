@@ -14,7 +14,8 @@ import { EyeIcon, EyeOffIcon, ArrowLeft, Mail, Twitter } from 'lucide-react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-// helelinoinjdfn ljfb slfb
+
+//hello
 const pageVariants = {
     initial: { opacity: 0, y: 20 },
     in: { opacity: 1, y: 0 },
