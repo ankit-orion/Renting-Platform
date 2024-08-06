@@ -1,113 +1,275 @@
-import Image from "next/image";
+'use client'
+import React, { useRef, useEffect, useState } from "react";
+import { motion, useAnimationFrame, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
+import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
+import { Button } from "@/components/ui/button";
 
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+// InfiniteMovingCards Component
+export const InfiniteMovingCards = ({ items, direction = "left", speed = "fast", pauseOnHover = true }) => {
+    const containerRef = useRef(null);
+    const scrollRef = useRef(null);
+
+    const x = useMotionValue(0);
+    const springConfig = { damping: 50, stiffness: 400 };
+    const springX = useSpring(x, springConfig);
+
+    const containerWidth = useMotionValue(0);
+    const scrollWidth = useMotionValue(0);
+
+    useEffect(() => {
+        const measureWidths = () => {
+            if (containerRef.current && scrollRef.current) {
+                containerWidth.set(containerRef.current.offsetWidth);
+                scrollWidth.set(scrollRef.current.scrollWidth);
+            }
+        };
+
+        measureWidths();
+        window.addEventListener("resize", measureWidths);
+
+        return () => {
+            window.removeEventListener("resize", measureWidths);
+        };
+    }, [containerWidth, scrollWidth]);
+
+    const translateX = useTransform(springX, (currentX) => {
+        const maxX = scrollWidth.get() - containerWidth.get();
+        return direction === "right" ? -maxX - currentX : -currentX;
+    });
+
+    const multiplier = speed === "fast" ? 1 : speed === "slow" ? 0.5 : 0.75;
+
+    useAnimationFrame((t) => {
+        const currentX = x.get();
+        const maxX = scrollWidth.get() - containerWidth.get();
+
+        if (maxX <= 0) return;
+
+        const newX = (currentX + multiplier) % maxX;
+        x.set(newX);
+    });
+
+    return (
+        <div ref={containerRef} className="relative overflow-hidden w-full">
+            <motion.div
+                ref={scrollRef}
+                style={{ x: translateX }}
+                className="flex gap-4 py-4"
+                whileHover={pauseOnHover ? "pause" : ""}
+                variants={{ pause: { animationPlayState: "paused" } }}
+            >
+                {items}
+                {items}
+            </motion.div>
         </div>
-      </div>
+    );
+};
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+// UserCard Component
+const UserCard = ({ user, onClick }) => (
+    <CardContainer className="inter-var">
+        <CardBody className="bg-gray-50 dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-auto sm:w-[30rem] h-auto rounded-xl p-6 border">
+            <CardItem translateZ="50" className="text-xl font-bold text-neutral-600 dark:text-white">
+                {user.name}
+            </CardItem>
+            <CardItem as="p" translateZ="60" className="text-neutral-500 text-sm max-w-sm mt-2 dark:text-neutral-300">
+                {user.description}
+            </CardItem>
+            <CardItem translateZ="100" className="w-full mt-4">
+                <Button onClick={(e) => onClick(user, { x: e.clientX, y: e.clientY })} className="rounded-full">
+                    View Details
+                </Button>
+            </CardItem>
+        </CardBody>
+    </CardContainer>
+);
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+// UserModal Component
+const UserModal = ({ user, onClose, position }) => {
+    const modalRef = useRef();
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (modalRef.current && !modalRef.current.contains(event.target)) {
+                onClose();
+            }
+        };
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [onClose]);
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+    const modalVariants = {
+        initial: {
+            opacity: 0,
+            scale: 0.8,
+            x: position.x - window.innerWidth / 2,
+            y: position.y - window.innerHeight / 2,
+        },
+        animate: {
+            opacity: 1,
+            scale: 1,
+            x: 0,
+            y: 0,
+            transition: {
+                type: "spring",
+                damping: 25,
+                stiffness: 300,
+            },
+        },
+        exit: {
+            opacity: 0,
+            scale: 0.8,
+            x: position.x - window.innerWidth / 2,
+            y: position.y - window.innerHeight / 2,
+            transition: {
+                type: "spring",
+                damping: 25,
+                stiffness: 300,
+                duration: 0.2,
+            },
+        },
+    };
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+            >
+                <motion.div
+                    ref={modalRef}
+                    className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full m-4"
+                    variants={modalVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                >
+                    <h2 className="text-2xl font-bold mb-4 dark:text-white">{user.name}</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">{user.description}</p>
+                    <p className="text-gray-800 dark:text-gray-200 mb-4">
+                        Additional details about {user.name} can go here.
+                    </p>
+                    <Button onClick={onClose}>Close</Button>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
+// CenterMap Component
+const CenterMap = ({ coords }) => {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(coords, 15, { animate: true });
+    }, [coords, map]);
+    return null;
+};
+
+// User Icon
+const userIcon = new L.Icon({
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+});
+
+// Main Component
+export default function Home() {
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
+    const [showAllUsers, setShowAllUsers] = useState(true);
+
+    const users = [
+        { name: "User 1", description: "Description for User 1", coords: [26.030384, 75.482068] },
+        { name: "User 2", description: "Description for User 2", coords: [50.052235, 118.243683] },
+        { name: "User 3", description: "Description for User 3", coords: [26.856684, 75.599286] },
+        { name: "User 4", description: "Description for User 4", coords: [29.760427, -95.369804] },
+        { name: "User 5", description: "Description for User 5", coords: [51.507351, -0.127758] },
+    ];
+
+    const handleUserClick = (user, position) => {
+        setSelectedUser(user);
+        setModalPosition(position);
+        setShowAllUsers(false);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedUser(null);
+        setShowAllUsers(true);
+    };
+
+    return (
+        <div className="relative w-full h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
+            <div className="absolute inset-0 z-0">
+                <MapContainer
+                    center={[40.73061, -73.935242]}
+                    zoom={13}
+                    style={{ height: "100vh" }}
+                    scrollWheelZoom={true}
+                >
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {showAllUsers && users.map((user, index) => (
+                        <Marker key={index} position={user.coords} icon={userIcon}>
+                            <Popup>
+                                <div onClick={(e) => handleUserClick(user, { x: e.clientX, y: e.clientY })}>
+                                    <h3 className="text-lg font-semibold">{user.name}</h3>
+                                    <p>{user.description}</p>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    ))}
+                    {!showAllUsers && selectedUser && (
+                        <>
+                            <Marker position={selectedUser.coords} icon={userIcon}>
+                                <Popup>
+                                    <div onClick={(e) => handleUserClick(selectedUser, { x: e.clientX, y: e.clientY })}>
+                                        <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
+                                        <p>{selectedUser.description}</p>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                            <CenterMap coords={selectedUser.coords} />
+                        </>
+                    )}
+                </MapContainer>
+            </div>
+            <div className="relative z-10 flex flex-col items-center justify-between h-full">
+                <motion.div
+                    className="flex-grow flex items-center justify-center"
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.6 }}
+                >
+                    <h1 className="text-6xl font-bold text-white drop-shadow-lg">
+                        Welcome to Rent Website
+                    </h1>
+                </motion.div>
+                <div className="w-full bg-black bg-opacity-50 p-4">
+                    <InfiniteMovingCards
+                        items={users.map((user, index) => (
+                            <UserCard key={index} user={user} onClick={handleUserClick} />
+                        ))}
+                        direction="right"
+                        speed="slow"
+                    />
+                </div>
+            </div>
+            {selectedUser && (
+                <UserModal user={selectedUser} onClose={handleCloseModal} position={modalPosition} />
+            )}
+            <div className="absolute top-4 right-4 z-20">
+                <Button onClick={() => setShowAllUsers(true)}>Show All Users</Button>
+            </div>
+        </div>
+    );
 }

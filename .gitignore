@@ -13,6 +13,8 @@
 /.next/
 /out/
 
+/public/assests/images/
+
 # production
 /build
 
