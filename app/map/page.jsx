@@ -10,7 +10,7 @@ const users = [
     { name: "User 2", description: "Description for User 2", coords: [50.052235, 118.243683] },
     { name: "User 3", description: "Description for User 3", coords: [26.856684, 75.599286] },
     { name: "User 4", description: "Description for User 4", coords: [29.760427, -95.369804] },
-    { name: "User 5", description: "Description for User 5", coords: [51.507351, -0.127758] },
+    { name: "User 5", description: "Description for User 5", coords: [27.483498, 77.709430] },
 ];
 
 const UserCard = ({ user, onClick }) => (
@@ -151,7 +151,7 @@ export default function Home() {
         <div className="relative w-full h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
             <div className="absolute inset-0 z-0">
                 <GoogleMapsEmbed
-                    apiKey="AIzaSyC5KJ8XCFe-_6wnbz8aF4wxBFO9dkVdvJw"
+                    apiKey={process.env.NEXT_PUBLIC_MAP_API}
                     height="100vh"
                     width="100%"
                     mode="place"

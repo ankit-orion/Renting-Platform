@@ -191,7 +191,7 @@ export default function Home() {
         { name: "User 2", description: "Description for User 2", coords: [50.052235, 118.243683] },
         { name: "User 3", description: "Description for User 3", coords: [26.856684, 75.599286] },
         { name: "User 4", description: "Description for User 4", coords: [29.760427, -95.369804] },
-        { name: "User 5", description: "Description for User 5", coords: [51.507351, -0.127758] },
+        { name: "User 5", description: "Description for User 5", coords: [27.483498, 77.709430] },
     ];
 
     const handleUserClick = (user, position) => {
